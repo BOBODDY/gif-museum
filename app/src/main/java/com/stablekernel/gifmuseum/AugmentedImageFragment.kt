@@ -15,11 +15,6 @@ import java.io.IOException
 
 class AugmentedImageFragment : ArFragment() {
     private val TAG = "AugmentedImageFragment"
-    private val IMAGE_DATABASE = "sample_database.imgdb"
-
-    init {
-        Log.d(TAG, "In constructor of fragment")
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -39,11 +34,13 @@ class AugmentedImageFragment : ArFragment() {
 
     override fun getSessionConfiguration(session: Session?): Config {
         val config = super.getSessionConfiguration(session)
-        config.focusMode = Config.FocusMode.AUTO
         if (!setupImageDatabase(config, session)) {
             Log.e(TAG, "Could not set up augmented image database")
-            Toast.makeText(requireContext(), "Could not set up augmented image database", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Could not set up augmented image database", Toast.LENGTH_LONG).show()
         }
+        config.focusMode = Config.FocusMode.AUTO
+        config.updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
+        Log.d(TAG, "Focus Mode ${config.focusMode}")
         return config
     }
 
@@ -52,9 +49,13 @@ class AugmentedImageFragment : ArFragment() {
         return try {
             requireContext().assets.open("gandalf.png").use { inputStream ->
                 val bitmap = BitmapFactory.decodeStream(inputStream)
-                imageDatabase.addImage("gandalf", bitmap)
-                config.augmentedImageDatabase = imageDatabase
+                imageDatabase.addImage("gandalf", bitmap, 0.12f)
             }
+            requireContext().assets.open("trampoline.png").use { inputStream ->
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                imageDatabase.addImage("trampoline", bitmap)
+            }
+            config.augmentedImageDatabase = imageDatabase
             true
         } catch (e: IOException) {
             Log.e(TAG, "IO exception loading augmented image database.", e)

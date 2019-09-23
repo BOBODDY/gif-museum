@@ -6,12 +6,14 @@ import android.util.Log
 import android.widget.ImageView
 import androidx.core.view.updateLayoutParams
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import com.google.ar.core.AugmentedImage
 import com.google.ar.core.Pose
 import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.Node
 import com.google.ar.sceneform.math.Quaternion
 import com.google.ar.sceneform.math.Vector3
+import com.google.ar.sceneform.rendering.DpToMetersViewSizer
 import com.google.ar.sceneform.rendering.FixedHeightViewSizer
 import com.google.ar.sceneform.rendering.FixedWidthViewSizer
 import com.google.ar.sceneform.rendering.ViewRenderable
@@ -33,12 +35,6 @@ class AugmentedImageNode(context: Context) : AnchorNode() {
         gifViewLoader.thenAccept { viewRenderable ->
             run {
                 gifView = viewRenderable
-                val view = viewRenderable.view
-                val image = view.findViewById<ImageView>(R.id.imageView)
-
-                Glide.with(context)
-                    .load(Uri.parse("https://media.giphy.com/media/TcdpZwYDPlWXC/giphy.gif"))
-                    .into(image)
             }
         }
     }
@@ -48,9 +44,9 @@ class AugmentedImageNode(context: Context) : AnchorNode() {
 
         if (!gifViewLoader.isDone) {
             gifViewLoader
-                .thenAccept { 
+                .thenAccept {
                     gifView = it
-                    setImageToNode(image) 
+                    setImageToNode(image)
                 }
             gifViewLoader.exceptionally { throwable: Throwable ->
                 Log.e("AugmentedImageNode", "failed to load", throwable)
@@ -60,18 +56,36 @@ class AugmentedImageNode(context: Context) : AnchorNode() {
         }
 
         anchor = image.createAnchor(image.centerPose)
-        
-        gifView?.sizer = FixedHeightViewSizer(image.extentZ)
-        
+
+        // TODO Get actual width of image dynamically, could just be luck that GIPHY images are 400 pixels wide
+        val imageWidth = 400
+        val viewWidth = (imageWidth / image.extentX).toInt()
+        gifView?.sizer = DpToMetersViewSizer(viewWidth)
+
         Log.d(TAG, "extentX ${image.extentX}, extentZ ${image.extentZ}")
-        
+
         val pose = Pose.makeTranslation(0.0f, 0.0f, 0.0f)
         val localPosition = Vector3(pose.tx(), pose.ty(), pose.tz())
         val centerNode = Node()
         centerNode.setParent(this)
         centerNode.localPosition = localPosition
-        centerNode.renderable = gifView
         centerNode.localRotation = Quaternion(pose.qx(), 90f, -90f, pose.qw())
-        centerNode.localScale = Vector3(image.extentX * 15f, image.extentZ * 30f, 0f)
+        centerNode.renderable = gifView
+
+        gifView?.view?.let { view ->
+            val imageView = view.findViewById<ImageView>(R.id.imageView)
+
+            val imageUri = when (image.name) {
+                "gandalf" -> Uri.parse("https://media.giphy.com/media/TcdpZwYDPlWXC/giphy.gif")
+                "trampoline" -> Uri.parse("https://media.giphy.com/media/ToMjGpjwk1MxyYRcQnK/giphy.gif")
+                else -> null
+            }
+
+            Glide.with(view.context)
+                .load(imageUri)
+                .into(imageView)
+        }
+
+
     }
 }
